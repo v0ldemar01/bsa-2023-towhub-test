@@ -8,19 +8,21 @@ import { configureStore } from '@reduxjs/toolkit';
 import { AppEnvironment } from '~/libs/enums/enums.js';
 import { type IConfig } from '~/libs/packages/config/config.js';
 import { authApi } from '~/packages/auth/auth.js';
+import { businessApi } from '~/packages/business/business.js';
+import { driverApi } from '~/packages/drivers/drivers.js';
+import { filesApi } from '~/packages/files/files.js';
+import { ordersApi } from '~/packages/orders/orders.js';
+import { truckApi } from '~/packages/trucks/trucks.js';
 import { userApi } from '~/packages/users/users.js';
 import { reducer as authReducer } from '~/slices/auth/auth.js';
-import { reducer as usersReducer } from '~/slices/users/users.js';
+import { reducer as drivers } from '~/slices/drivers/drivers.js';
+import { reducer as filesReducer } from '~/slices/files/files.js';
+import { reducer as orderReducer } from '~/slices/orders/order.js';
+import { reducer as truckReducer } from '~/slices/trucks/trucks.js';
 
-type RootReducer = {
-  auth: ReturnType<typeof authReducer>;
-  users: ReturnType<typeof usersReducer>;
-};
-
-type ExtraArguments = {
-  authApi: typeof authApi;
-  userApi: typeof userApi;
-};
+import { notification } from '../notification/notification.js';
+import { LocalStorage } from '../storage/storage.js';
+import { type ExtraArguments, type RootReducer } from './libs/types/types.js';
 
 class Store {
   public instance: ReturnType<
@@ -36,7 +38,10 @@ class Store {
       devTools: config.ENV.APP.ENVIRONMENT !== AppEnvironment.PRODUCTION,
       reducer: {
         auth: authReducer,
-        users: usersReducer,
+        trucks: truckReducer,
+        drivers: drivers,
+        files: filesReducer,
+        orders: orderReducer,
       },
       middleware: (getDefaultMiddleware) => {
         return getDefaultMiddleware({
@@ -52,6 +57,13 @@ class Store {
     return {
       authApi,
       userApi,
+      filesApi,
+      notification,
+      truckApi,
+      driverApi,
+      ordersApi,
+      localStorage: LocalStorage,
+      businessApi,
     };
   }
 }

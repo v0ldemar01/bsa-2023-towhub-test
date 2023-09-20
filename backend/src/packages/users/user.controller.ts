@@ -1,13 +1,16 @@
 import { ApiPath } from '~/libs/enums/enums.js';
 import {
+  type ApiHandlerOptions,
   type ApiHandlerResponse,
-  Controller,
 } from '~/libs/packages/controller/controller.js';
+import { Controller } from '~/libs/packages/controller/controller.js';
 import { HttpCode } from '~/libs/packages/http/http.js';
 import { type ILogger } from '~/libs/packages/logger/logger.js';
+import { AuthStrategy } from '~/packages/auth/libs/enums/enums.js';
 import { type UserService } from '~/packages/users/user.service.js';
 
 import { UsersApiPath } from './libs/enums/enums.js';
+import { type UserEntityT } from './users.js';
 
 /**
  * @swagger
@@ -32,31 +35,28 @@ class UserController extends Controller {
     this.userService = userService;
 
     this.addRoute({
-      path: UsersApiPath.ROOT,
+      path: UsersApiPath.$ID,
       method: 'GET',
-      handler: () => this.findAll(),
+      authStrategy: AuthStrategy.VERIFY_JWT,
+      handler: (options) =>
+        this.findById(
+          options as ApiHandlerOptions<{
+            params: { id: UserEntityT['id'] };
+          }>,
+        ),
     });
   }
 
-  /**
-   * @swagger
-   * /users:
-   *    get:
-   *      description: Returns an array of users
-   *      responses:
-   *        200:
-   *          description: Successful operation
-   *          content:
-   *            application/json:
-   *              schema:
-   *                type: array
-   *                items:
-   *                  $ref: '#/components/schemas/User'
-   */
-  private async findAll(): Promise<ApiHandlerResponse> {
+  private async findById(
+    options: ApiHandlerOptions<{
+      params: { id: UserEntityT['id'] };
+    }>,
+  ): Promise<ApiHandlerResponse> {
+    const user = await this.userService.findById(options.params.id);
+
     return {
       status: HttpCode.OK,
-      payload: await this.userService.findAll(),
+      payload: { result: user },
     };
   }
 }

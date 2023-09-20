@@ -1,56 +1,66 @@
-import { Button, Input } from '~/libs/components/components.js';
-import { useAppForm, useCallback } from '~/libs/hooks/hooks.js';
+import { Form, Link } from '~/libs/components/components.js';
+import { AppRoute, AuthMode } from '~/libs/enums/enums.js';
+import { getValidClassNames } from '~/libs/helpers/helpers.js';
 import {
-  type UserSignUpRequestDto,
-  userSignUpValidationSchema,
+  type CustomerSignUpRequestDto,
+  type ServerErrorHandling,
+  type ValueOf,
+} from '~/libs/types/types.js';
+import {
+  businessSignUpValidationSchema,
+  customerSignUpValidationSchema,
 } from '~/packages/users/users.js';
 
-import { DEFAULT_SIGN_UP_PAYLOAD } from './libs/constants.js';
+import {
+  DEFAULT_SIGN_UP_PAYLOAD_BUSINESS,
+  DEFAULT_SIGN_UP_PAYLOAD_CUSTOMER,
+} from './libs/constants.js';
+import { signUpBusinessFields, signUpCustomerFields } from './libs/fields.js';
+import styles from './styles.module.scss';
 
 type Properties = {
-  onSubmit: (payload: UserSignUpRequestDto) => void;
+  onSubmit: (payload: CustomerSignUpRequestDto) => void;
+  mode: ValueOf<typeof AuthMode>;
+  serverError: ServerErrorHandling;
 };
 
-const SignUpForm: React.FC<Properties> = ({ onSubmit }: Properties) => {
-  const { control, errors, handleSubmit } = useAppForm<UserSignUpRequestDto>({
-    defaultValues: DEFAULT_SIGN_UP_PAYLOAD,
-    validationSchema: userSignUpValidationSchema,
-  });
-
-  const handleFormSubmit = useCallback(
-    (event_: React.BaseSyntheticEvent): void => {
-      void handleSubmit(onSubmit)(event_);
-    },
-    [handleSubmit, onSubmit],
-  );
-
+const SignUpForm: React.FC<Properties> = ({
+  onSubmit,
+  mode,
+  serverError,
+}: Properties) => {
   return (
-    <>
-      <h3>Sign Up</h3>
-      <form onSubmit={handleFormSubmit}>
-        <p>
-          <Input
-            type="text"
-            label="Phone"
-            placeholder="Enter your email"
-            name="phone"
-            control={control}
-            errors={errors}
-          />
-        </p>
-        <p>
-          <Input
-            type="text"
-            label="Password"
-            placeholder="Enter your password"
-            name="password"
-            control={control}
-            errors={errors}
-          />
-        </p>
-        <Button type="submit" label="Sign up" />
-      </form>
-    </>
+    <div className={styles.formWrapper}>
+      <h3 className={getValidClassNames('h4', 'uppercase', styles.title)}>
+        Sign Up
+      </h3>
+      {mode === AuthMode.CUSTOMER ? (
+        <Form
+          defaultValues={DEFAULT_SIGN_UP_PAYLOAD_CUSTOMER}
+          validationSchema={customerSignUpValidationSchema}
+          onSubmit={onSubmit}
+          btnLabel="Create Account"
+          fields={signUpCustomerFields}
+          serverError={serverError}
+        />
+      ) : (
+        <Form
+          defaultValues={DEFAULT_SIGN_UP_PAYLOAD_BUSINESS}
+          validationSchema={businessSignUpValidationSchema}
+          onSubmit={onSubmit}
+          btnLabel="Create Account"
+          fields={signUpBusinessFields}
+          serverError={serverError}
+        />
+      )}
+
+      <p className={getValidClassNames('textSm', styles.text)}>
+        Already have an account? Go to{' '}
+        <Link to={AppRoute.SIGN_IN} className={styles.link}>
+          Sign in
+        </Link>
+      </p>
+    </div>
   );
 };
 

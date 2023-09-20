@@ -1,0 +1,16 @@
+export {
+  type DriverAddPayload,
+  type DriverAddPayloadWithBusinessId,
+  type DriverAddResponseWithGroup,
+  type DriverBusinessIdPayload,
+  type DriverCreateUpdateRequestDto,
+  type DriverCreateUpdateResponseDto,
+  type DriverEntity,
+  type DriverGetAllResponseDto,
+  type DriverGetDriversPagePayload,
+  type DriverGetDriversPayloadWithBusinessId,
+  type DriverRequestParameters,
+  type DriverUpdatePayload,
+  type DriverWithUserData,
+  type GetPaginatedPageQuery,
+} from 'shared/build/index.js';

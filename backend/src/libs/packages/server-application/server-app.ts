@@ -1,24 +1,44 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import fastifyAuth from '@fastify/auth';
+import cors from '@fastify/cors';
+import fastifyMultipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
 import swagger, { type StaticDocumentSpec } from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import Fastify, { type FastifyError } from 'fastify';
+import Fastify, {
+  type FastifyError,
+  type preHandlerHookHandler,
+} from 'fastify';
 
 import { ServerErrorType } from '~/libs/enums/enums.js';
 import { type ValidationError } from '~/libs/exceptions/exceptions.js';
 import { type IConfig } from '~/libs/packages/config/config.js';
 import { type IDatabase } from '~/libs/packages/database/database.js';
+import { GeolocationCacheService } from '~/libs/packages/geolocation-cache/geolocation-cache.js';
 import { HttpCode, HttpError } from '~/libs/packages/http/http.js';
 import { type ILogger } from '~/libs/packages/logger/logger.js';
+import { socket as socketService } from '~/libs/packages/socket/socket.js';
 import {
   type ServerCommonErrorResponse,
   type ServerValidationErrorResponse,
   type ValidationSchema,
 } from '~/libs/types/types.js';
+import { authPlugin } from '~/packages/auth/auth.js';
+import { filesValidationPlugin } from '~/packages/files/files.js';
+import { userService } from '~/packages/users/users.js';
 
+import { type AuthStrategyHandler } from '../controller/controller.js';
+import { jwtService } from '../jwt/jwt.js';
 import {
   type IServerApp,
   type IServerAppApi,
 } from './libs/interfaces/interfaces.js';
-import { type ServerAppRouteParameters } from './libs/types/types.js';
+import {
+  type ServerAppRouteParameters,
+  type ValidateFilesStrategyOptions,
+} from './libs/types/types.js';
 
 type Constructor = {
   config: IConfig;
@@ -48,18 +68,74 @@ class ServerApp implements IServerApp {
   }
 
   public addRoute(parameters: ServerAppRouteParameters): void {
-    const { path, method, handler, validation } = parameters;
+    const {
+      path,
+      method,
+      handler,
+      validation,
+      authStrategy,
+      validateFilesStrategy,
+    } = parameters;
+
+    const preHandler: preHandlerHookHandler[] = [];
+
+    if (authStrategy) {
+      const authStrategyHandler = this.resolveAuthStrategy(authStrategy);
+
+      if (authStrategyHandler) {
+        preHandler.push(authStrategyHandler);
+      }
+    }
+
+    if (validateFilesStrategy) {
+      preHandler.push(
+        this.resolveFileValidationStrategy(validateFilesStrategy),
+      );
+    }
 
     this.app.route({
       url: path,
       method,
       handler,
+      preHandler,
       schema: {
         body: validation?.body,
+        params: validation?.params,
+        querystring: validation?.query,
       },
     });
 
     this.logger.info(`Route: ${method as string} ${path} is registered`);
+  }
+
+  private resolveFileValidationStrategy(
+    validateFilesStrategy: ValidateFilesStrategyOptions,
+  ): preHandlerHookHandler {
+    const { strategy, filesInputConfig } = validateFilesStrategy;
+
+    return this.app[strategy](filesInputConfig);
+  }
+
+  private resolveAuthStrategy(
+    strategy?: AuthStrategyHandler,
+  ): undefined | preHandlerHookHandler {
+    if (Array.isArray(strategy)) {
+      const strategies = [];
+
+      for (const it of strategy) {
+        if (typeof it === 'string' && it in this.app) {
+          strategies.push(this.app[it]);
+        }
+      }
+
+      return this.app.auth(strategies, { relation: 'and' });
+    }
+
+    if (typeof strategy === 'string' && strategy in this.app) {
+      return this.app.auth([this.app[strategy]]);
+    }
+
+    return undefined;
   }
 
   public addRoutes(parameters: ServerAppRouteParameters[]): void {
@@ -91,6 +167,12 @@ class ServerApp implements IServerApp {
         await this.app.register(swaggerUi, {
           routePrefix: `${it.version}/documentation`,
         });
+
+        await this.app.register(cors, {
+          origin: '*',
+          methods: 'GET,PUT,POST,DELETE',
+          allowedHeaders: 'Content-Type',
+        });
       }),
     );
   }
@@ -102,6 +184,22 @@ class ServerApp implements IServerApp {
           abortEarly: false,
         }) as R;
       };
+    });
+  }
+
+  private async initServe(): Promise<void> {
+    const staticPath = join(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../../public',
+    );
+
+    await this.app.register(fastifyStatic, {
+      root: staticPath,
+      prefix: '/',
+    });
+
+    this.app.setNotFoundHandler(async (_request, response) => {
+      await response.sendFile('index.html', staticPath);
     });
   }
 
@@ -152,10 +250,30 @@ class ServerApp implements IServerApp {
     );
   }
 
+  private async initPlugins(): Promise<void> {
+    await this.app.register(fastifyAuth);
+    await this.app.register(authPlugin, {
+      config: this.config,
+      userService,
+      jwtService,
+    });
+    await this.app.register(fastifyMultipart);
+    await this.app.register(filesValidationPlugin);
+  }
+
   public async init(): Promise<void> {
     this.logger.info('Application initialization…');
 
+    await this.initServe();
+
+    socketService.initializeIo({
+      app: this.app,
+      geolocationCacheService: GeolocationCacheService.getInstance(),
+    });
+
     await this.initMiddlewares();
+
+    await this.initPlugins();
 
     this.initValidationCompiler();
 

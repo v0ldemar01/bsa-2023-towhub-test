@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.json",
-  "include": ["src"],
+  "include": ["src", "react-component.d.ts"],
   "exclude": ["node_modules"],
   "compilerOptions": {
     "target": "ESNext",
@@ -8,6 +8,7 @@
     "esModuleInterop": true,
     "moduleResolution": "Node",
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "jsx": "react-jsx",
     "baseUrl": ".",

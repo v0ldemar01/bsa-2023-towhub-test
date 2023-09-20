@@ -1,15 +1,17 @@
-import { type InferModel } from 'drizzle-orm';
-import { eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 
 import { type IRepository } from '~/libs/interfaces/interfaces.js';
-import {
-  type IDatabase,
-  type schema,
-} from '~/libs/packages/database/database.js';
+import { type IDatabase } from '~/libs/packages/database/database.js';
 import { type DatabaseSchema } from '~/libs/packages/database/schema/schema.js';
-import { UserEntity } from '~/packages/users/user.entity.js';
 
-class UserRepository implements IRepository {
+import {
+  type UserDatabaseModel,
+  type UserDatabaseModelCreateUpdate,
+  type UserDatabaseModelWithGroup,
+  type UserEntityT,
+} from './libs/types/types.js';
+
+class UserRepository implements IRepository<UserDatabaseModel> {
   private db: Pick<IDatabase, 'driver'>;
 
   private usersSchema: DatabaseSchema['users'];
@@ -22,48 +24,90 @@ class UserRepository implements IRepository {
     this.usersSchema = usersSchema;
   }
 
-  public find(): Promise<InferModel<typeof schema.users>[]> {
-    return Promise.resolve([]);
+  public findAll(): Promise<UserDatabaseModel[]> {
+    return this.db.driver().select().from(this.usersSchema);
   }
 
-  public findById(id: number): Promise<InferModel<typeof schema.users>[]> {
+  public find(
+    partial: Partial<UserDatabaseModel>,
+  ): ReturnType<IRepository<UserDatabaseModelWithGroup>['find']> {
+    const queries = Object.entries(partial).map(([key, value]) =>
+      eq(
+        this.usersSchema[key as keyof typeof partial],
+        value as NonNullable<typeof value>,
+      ),
+    );
+
+    const finalQuery = queries.length === 1 ? queries[0] : and(...queries);
+
     return this.db
+      .driver()
+      .query.users.findMany({
+        where: finalQuery,
+        with: { group: true },
+      })
+      .execute();
+  }
+
+  public async findByPhoneOrEmail({
+    phone,
+    email,
+  }: Pick<UserEntityT, 'phone' | 'email'>): Promise<
+    (UserEntityT & { createdAt: Date; updatedAt: Date }) | null
+  > {
+    const [user = null] = await this.db
       .driver()
       .select()
       .from(this.usersSchema)
-      .where(eq(this.usersSchema.id, id))
+      .where(
+        or(
+          eq(this.usersSchema.phone, phone),
+          eq(this.usersSchema.email, email),
+        ),
+      )
       .execute();
+
+    return user;
   }
 
-  public async findAll(): Promise<UserEntity[]> {
-    const users = await this.db.driver().select().from(this.usersSchema);
-
-    return users.map((it) => UserEntity.initialize(it));
-  }
-
-  public async create(entity: UserEntity): Promise<UserEntity> {
-    const { phone, passwordSalt, passwordHash } = entity.toNewObject();
-
-    const [item] = await this.db
+  public async create(
+    entity: UserDatabaseModelCreateUpdate,
+  ): ReturnType<IRepository<UserDatabaseModel>['create']> {
+    const [result] = await this.db
       .driver()
       .insert(this.usersSchema)
-      .values({
-        phone,
-        passwordHash,
-        passwordSalt,
-      })
+      .values(entity)
       .returning()
       .execute();
 
-    return UserEntity.initialize(item);
+    return result;
   }
 
-  public update(): ReturnType<IRepository['update']> {
-    return Promise.resolve(null);
+  public async update(
+    id: UserDatabaseModel['id'],
+    updated: Partial<UserDatabaseModelCreateUpdate>,
+  ): ReturnType<IRepository<UserDatabaseModel>['update']> {
+    const [result] = await this.db
+      .driver()
+      .update(this.usersSchema)
+      .set(updated)
+      .where(eq(this.usersSchema.id, id))
+      .returning()
+      .execute();
+
+    return result;
   }
 
-  public delete(): ReturnType<IRepository['delete']> {
-    return Promise.resolve(true);
+  public async delete(
+    id: UserDatabaseModel['id'],
+  ): ReturnType<IRepository<UserDatabaseModel>['delete']> {
+    await this.db
+      .driver()
+      .delete(this.usersSchema)
+      .where(eq(this.usersSchema.id, id))
+      .execute();
+
+    return true;
   }
 }
 

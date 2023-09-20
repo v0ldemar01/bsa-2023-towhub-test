@@ -1,0 +1,33 @@
+@import "src/assets/css/vars.scss";
+
+.container {
+  width: 100%;
+}
+
+.content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 97px;
+  padding-right: 29px;
+  padding-left: 48px;
+  background-color: $header-background;
+}
+
+.logoContainer {
+  width: 186px;
+}
+
+.button {
+  padding-inline: 60px;
+}
+
+.navMenu {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.welcome {
+  color: $white;
+}

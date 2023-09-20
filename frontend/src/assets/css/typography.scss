@@ -1,0 +1,77 @@
+.h2,
+.h3,
+.h4,
+.h5,
+.h6,
+.textBase,
+.textMd,
+.textMdBold,
+.textSm,
+.textXs {
+  line-height: $line-height-normal;
+}
+
+.h2,
+.h3,
+.h4,
+.h5 {
+  font-weight: $font-weight-bold;
+}
+
+.h2 {
+  font-size: 42px;
+  text-transform: capitalize;
+}
+
+.h3 {
+  font-size: 28px;
+  line-height: $line-height-lg;
+}
+
+.h4 {
+  font-size: 24px;
+}
+
+.h5 {
+  font-size: 18px;
+}
+
+.h6 {
+  font-weight: $font-weight-semibold;
+  font-size: 16px;
+  line-height: $line-height-xl;
+}
+
+.textBase {
+  font-weight: $font-weight-regular;
+  font-size: 18px;
+}
+
+.textMd {
+  font-weight: $font-weight-semibold;
+  font-size: 16px;
+}
+
+.textMdBold {
+  font-weight: $font-weight-extrabold;
+  font-size: 16px;
+}
+
+.textSm {
+  font-weight: $font-weight-regular;
+  font-size: 14px;
+}
+
+.textLg {
+  font-weight: $font-weight-regular;
+  font-size: 30px;
+}
+
+.textXs {
+  font-weight: $font-weight-regular;
+  font-size: 12px;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
